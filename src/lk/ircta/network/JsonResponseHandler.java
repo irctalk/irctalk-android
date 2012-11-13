@@ -33,11 +33,13 @@ public abstract class JsonResponseHandler<T> extends ResponseHandler {
 		try {
 			JsonNode node = mapper.readTree(msg);
 			
-			int status = node.get("status") != null ? node.get("status").asInt(0) : 0;
+			int status = node.has("status") ? node.get("status").asInt(0) : 0;
 			if (status != 0) {
 				onReceiveError(status, node.get("msg").asText());
 				return;
 			}
+			
+			long msgId = node.has("msg_id") ? node.get("msg_id").asLong() : 0;
 			
 			T data;
 			if (clazz == null) {
@@ -46,7 +48,9 @@ public abstract class JsonResponseHandler<T> extends ResponseHandler {
 					data = null;
 			} else 
 				data = mapper.readValue(node.get("data").traverse(), clazz);
+			
 			onReceiveData(data);
+			onReceiveData(msgId, data);
 		} catch (JsonParseException e) {
 			onThrowable(e);
 		} catch (JsonMappingException e) {
@@ -60,5 +64,7 @@ public abstract class JsonResponseHandler<T> extends ResponseHandler {
 		logger.warn(status + " - " + msg);
 	}
 
-	public abstract void onReceiveData(T data);
+	public void onReceiveData(T data) {};
+
+	public void onReceiveData(long msgId, T data) {};
 }

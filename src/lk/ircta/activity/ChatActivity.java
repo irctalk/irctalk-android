@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 public class ChatActivity extends BaseActivity implements OnSendMessageListener {
 	private static final Logger logger = Logger.getLogger(ChatActivity.class);
 	
-	public static final String EXTRA_SERVER = "server";
+	public static final String EXTRA_SERVER_ID = "server_id";
 	public static final String EXTRA_CHANNEL = "channel";
 	
 	private ChannelChatFragment channelChatfragment;
@@ -34,7 +34,7 @@ public class ChatActivity extends BaseActivity implements OnSendMessageListener 
 		setContentView(R.layout.chat_activity);
 
 		Intent intent = getIntent();
-		channelChatfragment = ChannelChatFragment.newInstance(intent.getStringExtra(EXTRA_SERVER), intent.getStringExtra(EXTRA_CHANNEL));
+		channelChatfragment = ChannelChatFragment.newInstance(intent.getLongExtra(EXTRA_SERVER_ID, 0), intent.getStringExtra(EXTRA_CHANNEL));
 		getSupportFragmentManager().beginTransaction().replace(R.id.content, channelChatfragment).commit();
 		
 		Channel channel = null;

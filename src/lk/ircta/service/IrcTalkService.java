@@ -24,6 +24,7 @@ import lk.ircta.network.ClientHandler;
 import lk.ircta.network.JsonRequestModel;
 import lk.ircta.network.JsonResponseHandler;
 import lk.ircta.network.ResponseHandler;
+import lk.ircta.network.datamodel.LoginData;
 import lk.ircta.network.handler.AddChannelHandler;
 import lk.ircta.network.handler.PushLogHandler;
 import lk.ircta.util.MapBuilder;
@@ -107,6 +108,7 @@ public class IrcTalkService extends Service {
 			
 			public void run() {
 				while (!shouldClose) {
+					logger.info(shouldClose);
 					registerLatch = new CountDownLatch(1);
 					loginLatch = new CountDownLatch(1);
 					isLoggedIn = false;
@@ -162,17 +164,22 @@ public class IrcTalkService extends Service {
 						// reset reconnect sleep interval to initial value
 						reconnectSleepInterval = RECONNECT_SLEEP_INTERVAL_INITIAL;
 						
-						Map<String, String> data = new MapBuilder<String, String>(1)
-								.put("auth_key", Local.INSTANCE.getAuthKey())
-								.build();
+						String gcmRegId = Local.INSTANCE.getOrInitGCMRegistrationId();
 						
 						if (Local.INSTANCE.isSignedIn()) {
 							registerLatch.countDown();
-							sendRequestSync("login", data, new JsonResponseHandler<Void>() {
+							
+							MapBuilder<String, Object> dataBuilder = new MapBuilder<String, Object>(3);
+							dataBuilder.put("auth_key", Local.INSTANCE.getAuthKey());
+							if (gcmRegId != null) 
+								dataBuilder.put("push_type", "gcm").put("push_token", gcmRegId);
+							sendRequestSync("login", dataBuilder.build(), new JsonResponseHandler<LoginData>(LoginData.class) {
 								@Override
-								public void onReceiveData(Void data) {
+								public void onReceiveData(LoginData data) {
 									isLoggedIn = true;
 									loginLatch.countDown();
+									
+									// TODO do something with data.alert
 								}
 								
 								@Override
@@ -191,6 +198,23 @@ public class IrcTalkService extends Service {
 						if (!isLoggedIn) 
 							close(false);
 						
+						// gcm registration id
+						if (gcmRegId != null && !Local.INSTANCE.isGCMRegIdSent()) {
+							Map<String, Object> data = new MapBuilder<String, Object>(3)
+									.put("push_type", "gcm")
+									.put("push_token", gcmRegId)
+									.put("alert", true)
+									.build();
+							sendRequest("setNotification", data, new JsonResponseHandler<Void>() {
+								@Override
+								public void onReceiveData(Void data) {
+									Local.INSTANCE.saveGCMRegIdSent(true);
+								}
+							});
+						}
+						
+						// request queue
+						
 						WebSocketFrame frame;
 						while ((frame = requestQueue.take()) != null) {
 							logger.debug("request taken : " + frame.toString());
@@ -207,6 +231,9 @@ public class IrcTalkService extends Service {
 					} catch (Exception e) {
 						logger.error(null, e);
 					} finally {
+						if (channel != null)
+							channel.close();
+						
 						isLoggedIn = false;
 						isConnectionActive.setValue(false);
 						requestQueue.clear();
@@ -257,7 +284,8 @@ public class IrcTalkService extends Service {
 			handler = new ResponseHandler() {
 				@Override
 				public void onReceive(String msg) {
-					rawHandler.onReceive(msg);
+					if (rawHandler != null)
+						rawHandler.onReceive(msg);
 					registerLatch.countDown();
 				}
 			};
@@ -265,7 +293,8 @@ public class IrcTalkService extends Service {
 			handler = new ResponseHandler() {
 				@Override
 				public void onReceive(String msg) {
-					rawHandler.onReceive(msg);
+					if (rawHandler != null)
+						rawHandler.onReceive(msg);
 					
 					try {
 						JsonNode node = JsonResponseHandler.mapper.readTree(msg);
@@ -294,8 +323,14 @@ public class IrcTalkService extends Service {
 		requestQueue.add(packetModel.asFrame());
 	}
 	
+	public static <T> void sendAck(String type, long msgId, T data) {
+		JsonRequestModel<T> packetModel = new JsonRequestModel<T>(type, msgId, data);
+		requestQueue.add(packetModel.asFrame());
+	}
+	
 	public void close(boolean shouldClose) {
-		this.shouldClose = shouldClose;
+		if (shouldClose)
+			this.shouldClose = shouldClose;
 		
 		registerLatch.countDown();
 		loginLatch.countDown();
@@ -308,9 +343,6 @@ public class IrcTalkService extends Service {
 				requestQueue.add(new CloseWebSocketFrame());
 			}
 		}
-		
-		if (shouldClose)
-			ioWorkerThread.interrupt();
 	}
 	
 	public boolean isLoggedIn() {

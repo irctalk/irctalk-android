@@ -33,6 +33,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView.AdapterContextMenuInfo;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
@@ -43,10 +45,10 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
-public class ChannelChatFragment extends BaseFragment {
+public class ChannelChatFragment extends BaseFragment implements OnItemClickListener {
 	private static final Logger logger = Logger.getLogger(ChannelChatFragment.class);
 	
-	private static final String ARG_SERVER = "server";
+	private static final String ARG_SERVER_ID = "server_id";
 	private static final String ARG_CHANNEL = "channel";
 	
 	private static final int CONTEXT_MENU_COPY = 100;
@@ -71,7 +73,7 @@ public class ChannelChatFragment extends BaseFragment {
 		}
 	};
 	
-	private Server server;
+	private long serverId;
 	private Channel channel;
 	
 	private ListView chatListView;
@@ -81,10 +83,10 @@ public class ChannelChatFragment extends BaseFragment {
 	private AtomicBoolean gettingPastLog;
 	private long rootLogId;
 	
-	public static ChannelChatFragment newInstance(String serverJson, String channelJson) {
+	public static ChannelChatFragment newInstance(long serverId, String channelJson) {
 		ChannelChatFragment fragment = new ChannelChatFragment();
 		Bundle args = new Bundle();
-		args.putString(ARG_SERVER, serverJson);
+		args.putLong(ARG_SERVER_ID, serverId);
 		args.putString(ARG_CHANNEL, channelJson);
 		fragment.setArguments(args);
 		return fragment;
@@ -94,7 +96,7 @@ public class ChannelChatFragment extends BaseFragment {
 		ChannelChatFragment fragment = new ChannelChatFragment();
 		Bundle args = new Bundle();
 		try {
-			args.putString(ARG_SERVER, JsonResponseHandler.mapper.writeValueAsString(server));
+			args.putLong(ARG_SERVER_ID, server.getId());
 			args.putString(ARG_CHANNEL, JsonResponseHandler.mapper.writeValueAsString(channel));
 		} catch (JsonGenerationException e) {
 			logger.error(null, e);
@@ -119,7 +121,7 @@ public class ChannelChatFragment extends BaseFragment {
 			return;
 		
 		try {
-			server = JsonResponseHandler.mapper.readValue(args.getString(ARG_SERVER), Server.class);
+			serverId = args.getLong(ARG_SERVER_ID);
 			channel = JsonResponseHandler.mapper.readValue(args.getString(ARG_CHANNEL), Channel.class);
 		} catch (JsonParseException e) {
 			logger.error(null, e);
@@ -173,6 +175,11 @@ public class ChannelChatFragment extends BaseFragment {
 	}
 	
 	@Override
+	public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+		
+	}
+	
+	@Override
 	public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
 		super.onCreateContextMenu(menu, v, menuInfo);
 		
@@ -208,7 +215,7 @@ public class ChannelChatFragment extends BaseFragment {
 		chatListHeaderView.getChildAt(0).setVisibility(View.VISIBLE);
 		
 		Map<String, Object> data = new MapBuilder<String, Object>(4)
-				.put("server_id", server.getId())
+				.put("server_id", serverId)
 				.put("channel", channel.getChannel())
 				.put("last_log_id", chatListAdapter.getItem(0).getLogId())
 				.put("log_count", 30)
@@ -240,7 +247,7 @@ public class ChannelChatFragment extends BaseFragment {
 	
 	public void sendMessage(String message) {
 		Map<String, Object> data = new MapBuilder<String, Object>()
-				.put("server_id", server.getId())
+				.put("server_id", serverId)
 				.put("channel", channel.getChannel())
 				.put("message", message)
 				.build();

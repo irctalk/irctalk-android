@@ -1,21 +1,13 @@
 package lk.ircta.activity;
 
 import lk.ircta.R;
-import lk.ircta.application.Config;
 import lk.ircta.local.Local;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
-
 import android.os.Bundle;
 
 import com.actionbarsherlock.view.Menu;
 import com.actionbarsherlock.view.MenuItem;
-import com.google.android.gcm.GCMRegistrar;
 
 public class MainActivity extends BaseActivity {
-	private static final Logger logger = Logger.getLogger(MainActivity.class);
-	
 	private static final int MENU_SETTING = 1090;
 	private static final int MENU_SIGN_OUT = 1100;
 
@@ -25,18 +17,6 @@ public class MainActivity extends BaseActivity {
 		setContentView(R.layout.main_activity);
 		
 		getSupportActionBar().setHomeButtonEnabled(false);
-		
-		try {
-			GCMRegistrar.checkDevice(this);
-			GCMRegistrar.checkManifest(this);
-			final String regId = GCMRegistrar.getRegistrationId(this);
-			if (StringUtils.isEmpty(regId)) 
-			  GCMRegistrar.register(this, Config.GCM_SENDER_ID);
-			else 
-				logger.debug("GCM already registered");
-		} catch (UnsupportedOperationException e) {
-			// ignore
-		}
 	}
 
 	@Override

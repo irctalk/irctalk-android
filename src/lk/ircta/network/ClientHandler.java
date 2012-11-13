@@ -87,7 +87,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 				responseHandlers.remove(handlerKey);
 				handler.onReceive(msg);
 			} else {
-				handler = persistResponseHandlers.get(handlerKey);
+				handler = persistResponseHandlers.get(type);
 				if (handler != null) 
 					handler.onReceive(msg);
 			}

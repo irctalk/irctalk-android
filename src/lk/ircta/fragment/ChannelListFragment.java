@@ -3,6 +3,7 @@ package lk.ircta.fragment;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -287,6 +288,15 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 					channels.get(server).add(channel);
 				}
 				
+				for (Server server : servers) {
+					Collections.sort(channels.get(server), new Comparator<Channel>() {
+						@Override
+						public int compare(Channel lhs, Channel rhs) {
+							return lhs.getChannel().compareTo(rhs.getChannel());
+						}
+					});
+				}
+				
 				logger.info(channels);
 				
 				runOnUiThread(new Runnable() {
@@ -330,7 +340,7 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 	public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
 		Intent intent = new Intent(getActivity(), ChatActivity.class);
 		try {
-			intent.putExtra(ChatActivity.EXTRA_SERVER, JsonResponseHandler.mapper.writeValueAsString(servers.get(groupPosition)));
+			intent.putExtra(ChatActivity.EXTRA_SERVER_ID, servers.get(groupPosition).getId());
 			intent.putExtra(ChatActivity.EXTRA_CHANNEL,
 					JsonResponseHandler.mapper.writeValueAsString(channels.get(servers.get(groupPosition)).get(childPosition)));
 		} catch (JsonGenerationException e) {

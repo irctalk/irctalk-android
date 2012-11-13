@@ -27,6 +27,12 @@ public class JsonRequestModel<T> {
 		this.msgId = msgIdCounter.getAndIncrement();
 		this.data = data;
 	}
+	
+	public JsonRequestModel(String type, long msgId, T data) {
+		this.type = type;
+		this.msgId = msgId;
+		this.data = data;
+	}
 
 	public TextWebSocketFrame asFrame() {
 		try {
