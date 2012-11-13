@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true" >
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/white"
+            android:orientation="vertical"
+            android:paddingLeft="@dimen/padding_large"
+            android:paddingRight="@dimen/padding_large" >
+
+            <TextView
+                style="?android:attr/listSeparatorTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Basic Info" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/padding_normal" />
+
+            <TextView
+                style="@style/SubHeaderTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Name" />
+
+            <EditText
+                android:id="@+id/name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeActionId="@+id/host"
+                android:imeOptions="actionNext"
+                android:inputType="text" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/padding_normal" />
+
+            <TextView
+                style="?android:attr/listSeparatorTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Server" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/padding_normal" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" >
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical" >
+
+                    <TextView
+                        style="@style/SubHeaderTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Host" />
+
+                    <EditText
+                        android:id="@+id/host"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ems="10"
+                        android:hint="irc.example.com"
+                        android:imeActionId="@+id/port"
+                        android:imeOptions="actionNext"
+                        android:inputType="textUri" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" >
+
+                    <TextView
+                        style="@style/SubHeaderTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Port" />
+
+                    <EditText
+                        android:id="@+id/port"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:hint="###"
+                        android:imeActionId="@+id/nickname"
+                        android:imeOptions="actionNext"
+                        android:inputType="numberSigned"
+                        android:maxLength="5"
+                        android:minEms="4" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/ssl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Use SSL" />
+
+            <TextView
+                style="?android:attr/listSeparatorTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="User" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/padding_normal" />
+
+            <TextView
+                style="@style/SubHeaderTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Nickname" />
+
+            <EditText
+                android:id="@+id/nickname"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeActionId="@+id/realname"
+                android:imeOptions="actionNext"
+                android:inputType="text" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/padding_normal" />
+
+            <TextView
+                style="@style/SubHeaderTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Real name" />
+
+            <EditText
+                android:id="@+id/realname"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionDone"
+                android:inputType="text" />
+        </LinearLayout>
+    </ScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:drawable/divider_horizontal_bright" />
+
+</LinearLayout>

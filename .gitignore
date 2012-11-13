@@ -1,0 +1,24 @@
+# built application files
+*.apk
+*.ap_
+
+# files for the dex VM
+*.dex
+
+# Java class files
+*.class
+
+# generated files
+bin/
+gen/
+
+# local configuration
+local.properties
+
+# service configuration
+src/com/irctalk/application/Config.java
+
+# Eclipse project files
+.classpath
+.project
+.settings

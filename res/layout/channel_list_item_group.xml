@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/BorderlessButton.NoPadding"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="horizontal"
+    android:paddingLeft="?android:attr/expandableListPreferredItemPaddingLeft" >
+
+    <TextView
+        android:id="@+id/server"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingBottom="@dimen/padding_normal"
+        android:paddingRight="@dimen/padding_normal"
+        android:paddingTop="@dimen/padding_normal"
+        android:text="freenode" />
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="@android:drawable/divider_horizontal_bright" />
+
+    <ImageButton
+        android:id="@+id/add_channel"
+        style="@style/BorderlessButton"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:padding="@dimen/padding_small"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_ab_new" />
+
+</LinearLayout>
