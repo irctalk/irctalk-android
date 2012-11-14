@@ -27,6 +27,11 @@ public class Log implements Model {
 		return Channel.getChannelKey(serverId, channel);
 	}
 	
+	@JsonIgnore
+	public String getFromMessage() {
+		return from != null ? "<" + from + "> " + message : message;
+	}
+	
 	public long getServerId() {
 		return serverId;
 	}

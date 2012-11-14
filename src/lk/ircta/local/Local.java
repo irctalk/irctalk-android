@@ -81,6 +81,7 @@ public enum Local {
 	public void signOut() {
 		saveAuthKey(null);
 		saveEmail(null);
+		saveGCMRegIdSent(false);
 		
 		String gcmId = getOrInitGCMRegistrationId();
 		if (gcmId != null) {

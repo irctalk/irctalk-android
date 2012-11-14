@@ -1,15 +1,22 @@
 package lk.ircta.model;
 
-import java.util.List;
+import java.util.Comparator;
 import java.util.Locale;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Channel implements Model {
-	private long serverId;
+	public static final Comparator<Channel> NAME_COMPARATOR = new Comparator<Channel>() {
+		@Override
+		public int compare(Channel lhs, Channel rhs) {
+			return lhs.channel.compareTo(rhs.channel);
+		}
+	};
+	private Long serverId;
 	private String channel;
 	private String topic;
-	private List<String> members;
+	private Set<String> members;
 	private Log lastLog;
 	
 	public Channel(long serverId, String channel) {
@@ -19,16 +26,37 @@ public class Channel implements Model {
 	
 	protected Channel() {}
 	
+	public void mergeUpdate(Channel newChannel) {
+		if (newChannel.serverId != null)
+			this.serverId = newChannel.serverId;
+		if (newChannel.channel != null)
+			this.channel = newChannel.channel;
+		if (newChannel.topic != null)
+			this.topic = newChannel.topic;
+		
+		for (String member : newChannel.members) {
+			String nick = member.substring(1);
+			switch (member.charAt(0)) {
+			case '+':
+				members.add(nick);
+				break;
+			case '-':
+				members.remove(nick);
+				break;
+			}
+		}
+	}
+	
 	@JsonIgnore
 	public String getChannelKey() {
 		return getChannelKey(serverId, channel);
 	}
 	
-	public long getServerId() {
+	public Long getServerId() {
 		return serverId;
 	}
 	
-	public void setServerId(long serverId) {
+	public void setServerId(Long serverId) {
 		this.serverId = serverId;
 	}
 
@@ -48,11 +76,11 @@ public class Channel implements Model {
 		this.topic = topic;
 	}
 	
-	public List<String> getMembers() {
+	public Set<String> getMembers() {
 		return members;
 	}
 	
-	public void setMembers(List<String> memebers) {
+	public void setMembers(Set<String> memebers) {
 		this.members = memebers;
 	}
 

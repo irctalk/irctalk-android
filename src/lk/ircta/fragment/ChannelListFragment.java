@@ -1,8 +1,10 @@
 package lk.ircta.fragment;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import lk.ircta.R;
 import lk.ircta.activity.AddServerActivity;
@@ -57,7 +59,7 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			try {
-				List<Log> logs = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_LOGS), new TypeReference<List<Log>>(){});
+				List<Log> logs = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_LOGS), new TypeReference<List<Log>>() {});
 				for (Log log : logs)
 					adapter.setLastLogIfLast(log);
 			} catch (JsonParseException e) {
@@ -71,17 +73,21 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 		}
 	};
 
-	private final BroadcastReceiver addChannelReceiver = new BroadcastReceiver() {
+	private final BroadcastReceiver updateChannelsReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			try {
-				Channel channel = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_CHANNEL), Channel.class);
-				for (Server server : adapter.servers) {
-					if (server.getId() == channel.getServerId()) {
-//						channels.get(server).add(channel);
-						break;
-					}
-				}
+				List<Channel> channels = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_CHANNELS), new TypeReference<List<Channel>>() {});
+				Set<Long> serverIds = new HashSet<Long>();
+				for (Channel channel : channels) 
+					serverIds.add(channel.getServerId());
+				
+				IrcTalkService talkService = getIrcTalkService();
+				if (talkService == null)
+					return;
+				
+				for (Long serverId : serverIds)
+					adapter.channels.put(serverId, talkService.getServerChannels(serverId));
 			} catch (JsonParseException e) {
 				logger.error(null, e);
 			} catch (JsonMappingException e) {
@@ -117,7 +123,6 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 										@Override
 										public void onReceiveData(Void data) {
 											Toast.makeText(getActivity(), "response", Toast.LENGTH_SHORT).show();
-//											requestGetServers();
 										}
 									});
 								}
@@ -173,7 +178,7 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 			TextView lastMessageView = (TextView) convertView.findViewById(R.id.last_message);
 			Log lastLog = channel.getLastLog();
 			if (lastLog != null)
-				lastMessageView.setText(lastLog.getFrom() != null ? lastLog.getFrom() + ": " + lastLog.getMessage() : lastLog.getMessage());
+				lastMessageView.setText(lastLog.getFromMessage());
 			else
 				lastMessageView.setText("");
 
@@ -267,7 +272,7 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 			listView.expandGroup(i);
 		
 		localBroadcastManager.registerReceiver(pushLogReceiver, new IntentFilter(LocalBroadcast.PUSH_LOGS));
-		localBroadcastManager.registerReceiver(addChannelReceiver, new IntentFilter(LocalBroadcast.ADD_CHANNEL));
+		localBroadcastManager.registerReceiver(updateChannelsReceiver, new IntentFilter(LocalBroadcast.UPDATE_CHANNELS));
 	}
 
 //	private void requestGetServers() {
@@ -341,6 +346,6 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 		super.onDestroy();
 
 		localBroadcastManager.unregisterReceiver(pushLogReceiver);
-		localBroadcastManager.unregisterReceiver(addChannelReceiver);
+		localBroadcastManager.unregisterReceiver(updateChannelsReceiver);
 	}
 }

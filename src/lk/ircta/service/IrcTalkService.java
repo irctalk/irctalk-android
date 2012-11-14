@@ -31,9 +31,10 @@ import lk.ircta.network.ResponseHandler;
 import lk.ircta.network.datamodel.GetInitLogsData;
 import lk.ircta.network.datamodel.GetServersData;
 import lk.ircta.network.datamodel.LoginData;
-import lk.ircta.network.handler.AddChannelHandler;
 import lk.ircta.network.handler.PushLogHandler;
+import lk.ircta.network.handler.UpdateChannelHandler;
 import lk.ircta.util.MapBuilder;
+import lk.ircta.util.SortedList;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.log4j.Logger;
@@ -93,6 +94,7 @@ public class IrcTalkService extends Service {
 	private ClientHandler clientHandler;
 	private CountDownLatch registerLatch, loginLatch;
 	private volatile boolean isLoggedIn;
+	private volatile boolean isConnectionInitialized;
 	private volatile boolean shouldClose;
 	private final MutableBoolean isConnectionActive = new MutableBoolean();
 	
@@ -121,6 +123,7 @@ public class IrcTalkService extends Service {
 					registerLatch = new CountDownLatch(1);
 					loginLatch = new CountDownLatch(1);
 					isLoggedIn = false;
+					isConnectionInitialized = false;
 					isConnectionActive.setValue(false);
 					
 					ClientBootstrap bootstrap = new ClientBootstrap(new OioClientSocketChannelFactory(Executors.newCachedThreadPool()));
@@ -146,7 +149,7 @@ public class IrcTalkService extends Service {
 						
 						clientHandler = new ClientHandler(handshaker, IrcTalkService.this);
 						clientHandler.putPersistResponseHandler("pushLog", new PushLogHandler(IrcTalkService.this));
-						clientHandler.putPersistResponseHandler("addChannel", new AddChannelHandler());
+						clientHandler.putPersistResponseHandler("updateChannel", new UpdateChannelHandler(IrcTalkService.this));
 						
 						bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 							@Override
@@ -215,7 +218,7 @@ public class IrcTalkService extends Service {
 								channelKeyMap = new HashMap<String, Channel>(data.channels.size());
 								
 								for (Server server : servers) 
-									channels.put(server.getId(), new ArrayList<Channel>());
+									channels.put(server.getId(), new SortedList<Channel>(Channel.NAME_COMPARATOR, true));
 								
 								for (Channel channel : data.channels) {
 									channels.get(channel.getServerId()).add(channel);
@@ -231,6 +234,7 @@ public class IrcTalkService extends Service {
 									});
 								}
 								
+								isConnectionInitialized = true;
 								LocalBroadcastManager.getInstance(IrcTalkService.this).sendBroadcast(new Intent(LocalBroadcast.CONNECTION_INITIALIZED));
 							}
 						}).syncUninterruptibly();
@@ -284,6 +288,7 @@ public class IrcTalkService extends Service {
 							channel.close();
 						
 						isLoggedIn = false;
+						isConnectionInitialized = false;
 						isConnectionActive.setValue(false);
 						requestQueue.clear();
 						
@@ -396,6 +401,11 @@ public class IrcTalkService extends Service {
 		return isLoggedIn;
 	}
 	
+	public boolean isConnectionInitialized() {
+		return isConnectionInitialized;
+	}
+	
+	
 	public List<Server> getServers() {
 		return new ArrayList<Server>(servers);
 	}
@@ -421,6 +431,26 @@ public class IrcTalkService extends Service {
 	
 	public Channel getChannel(long serverId, String channelStr) {
 		return channelKeyMap.get(Channel.getChannelKey(serverId, channelStr));
+	}
+	
+	public void addOrUpdateChannel(Channel newChannel) {
+		synchronized (channels) {
+			Channel channel = getChannel(newChannel.getServerId(), newChannel.getChannelKey());
+			if (channel == null) {
+				channels.get(newChannel.getServerId()).add(newChannel);
+				channelKeyMap.put(newChannel.getChannelKey(), newChannel);
+			} else 
+				channel.mergeUpdate(newChannel);
+		}
+	}
+	
+	/** 
+	 * do not call this method outside (except for persist handlers)
+	 * @param channel
+	 */
+	public void putChannel(Channel channel) {
+		channels.get(channel.getServerId()).add(channel);
+		channelKeyMap.put(channel.getChannelKey(), channel);
 	}
 	
 	/**
