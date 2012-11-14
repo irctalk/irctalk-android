@@ -45,7 +45,11 @@
             android:name=".activity.ChatActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="Chat"
+            android:parentActivityName=".activity.MainActivity"
             android:windowSoftInputMode="stateHidden" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".activity.MainActivity" />
         </activity>
         <activity
             android:name=".activity.SignInActivity"

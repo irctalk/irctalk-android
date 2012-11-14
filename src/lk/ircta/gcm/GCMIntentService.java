@@ -5,7 +5,6 @@ import java.util.Map;
 
 import lk.ircta.R;
 import lk.ircta.activity.ChatActivity;
-import lk.ircta.activity.MainActivity;
 import lk.ircta.application.Config;
 import lk.ircta.local.Local;
 import lk.ircta.model.Log;
@@ -45,12 +44,13 @@ public class GCMIntentService extends GCMBaseIntentService {
 		logger.debug("onMessage - " + intent);
 		
 		String logJson = intent.getStringExtra("log");
-		
+		showPushLogNotification(context, logJson);
+	}
+	
+	public static void showPushLogNotification(Context context, String logJson) {
 		Log log = null;
-		String channelJson = null;
 		try {
-			log = JsonResponseHandler.mapper.readValue(logJson, Log.class);
-			channelJson = JsonResponseHandler.mapper.writeValueAsString(log.getChannel());
+			JsonResponseHandler.mapper.readValue(logJson, Log.class);
 		} catch (JsonGenerationException e) {
 			logger.error(null, e);
 		} catch (JsonMappingException e) {
@@ -58,22 +58,27 @@ public class GCMIntentService extends GCMBaseIntentService {
 		} catch (IOException e) {
 			logger.error(null, e);
 		}
-
-		Intent resultIntent = new Intent(this, ChatActivity.class);
-		resultIntent.putExtra(ChatActivity.EXTRA_SERVER_ID, log.getServerId());
-		resultIntent.putExtra(ChatActivity.EXTRA_CHANNEL, channelJson);
 		
-		TaskStackBuilder stackBuilder = TaskStackBuilder.create(this)
-				.addParentStack(MainActivity.class)
+		showPushLogNotification(context, log);
+	}
+	
+	public static void showPushLogNotification(Context context, Log log) {
+		Intent resultIntent = new Intent(context, ChatActivity.class);
+		resultIntent.putExtra(ChatActivity.EXTRA_SERVER_ID, log.getServerId());
+		resultIntent.putExtra(ChatActivity.EXTRA_CHANNEL, log.getChannel());
+		
+		TaskStackBuilder stackBuilder = TaskStackBuilder.create(context)
+				.addParentStack(ChatActivity.class)
 				.addNextIntent(resultIntent);
 		
-		NotificationCompat.Builder notfBuilder = new NotificationCompat.Builder(this)
+		NotificationCompat.Builder notfBuilder = new NotificationCompat.Builder(context)
 				.setSmallIcon(R.drawable.ic_stat_push)
-				.setContentTitle(log.getFrom())
-				.setContentText(log.getMessage())
-				.setContentIntent(stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT));
+				.setContentTitle(log.getChannel())
+				.setContentText(log.getFrom() != null ? log.getFrom() + ": " + log.getMessage() : log.getMessage())
+				.setContentIntent(stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT))
+				.setAutoCancel(true);
 		
-		NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+		NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 		notificationManager.notify(NOTF_PUSH, notfBuilder.build());
 	}
 

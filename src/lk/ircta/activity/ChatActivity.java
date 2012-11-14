@@ -1,13 +1,11 @@
 package lk.ircta.activity;
 
-import java.io.IOException;
-
 import lk.ircta.R;
 import lk.ircta.fragment.ChannelChatFragment;
 import lk.ircta.fragment.WriteMessageFragment;
 import lk.ircta.fragment.WriteMessageFragment.OnSendMessageListener;
 import lk.ircta.model.Channel;
-import lk.ircta.network.JsonResponseHandler;
+import lk.ircta.service.IrcTalkService;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
@@ -16,8 +14,6 @@ import android.content.Intent;
 import android.os.Bundle;
 
 import com.actionbarsherlock.view.MenuItem;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 
 public class ChatActivity extends BaseActivity implements OnSendMessageListener {
 	private static final Logger logger = Logger.getLogger(ChatActivity.class);
@@ -26,6 +22,7 @@ public class ChatActivity extends BaseActivity implements OnSendMessageListener 
 	public static final String EXTRA_CHANNEL = "channel";
 	
 	private ChannelChatFragment channelChatfragment;
+	private WriteMessageFragment writeMessageFragment;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -37,22 +34,20 @@ public class ChatActivity extends BaseActivity implements OnSendMessageListener 
 		channelChatfragment = ChannelChatFragment.newInstance(intent.getLongExtra(EXTRA_SERVER_ID, 0), intent.getStringExtra(EXTRA_CHANNEL));
 		getSupportFragmentManager().beginTransaction().replace(R.id.content, channelChatfragment).commit();
 		
-		Channel channel = null;
-		try {
-			channel = JsonResponseHandler.mapper.readValue(intent.getStringExtra(EXTRA_CHANNEL), Channel.class);
-		} catch (JsonParseException e) {
-			logger.error(null, e);
-		} catch (JsonMappingException e) {
-			logger.error(null, e);
-		} catch (IOException e) {
-			logger.error(null, e);
-		}
-		
-		WriteMessageFragment writeMessageFragment = (WriteMessageFragment) getSupportFragmentManager().findFragmentById(R.id.write_message);
+		writeMessageFragment = (WriteMessageFragment) getSupportFragmentManager().findFragmentById(R.id.write_message);
 		writeMessageFragment.setOnSendMessageListener(this);
-		writeMessageFragment.setAutoCompleteNicknames(channel.getMembers().toArray(ArrayUtils.EMPTY_STRING_ARRAY));
 
 		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+	}
+	
+	@Override
+	protected void onBindService(IrcTalkService talkService) {
+		super.onBindService(talkService);
+		
+		Intent intent = getIntent();
+		
+		Channel channel = talkService.getChannel(intent.getLongExtra(EXTRA_SERVER_ID, 0), intent.getStringExtra(EXTRA_CHANNEL));
+		writeMessageFragment.setAutoCompleteNicknames(channel.getMembers().toArray(ArrayUtils.EMPTY_STRING_ARRAY));
 	}
 	
 	@Override
@@ -62,6 +57,7 @@ public class ChatActivity extends BaseActivity implements OnSendMessageListener 
 			Intent intent = new Intent(this, MainActivity.class);
 			intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 			startActivity(intent);
+			finish();
 			return true;
 		}
 

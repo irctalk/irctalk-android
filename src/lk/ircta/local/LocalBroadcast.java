@@ -4,7 +4,7 @@ import lk.ircta.model.Channel;
 import lk.ircta.model.Log;
 
 public abstract class LocalBroadcast {
-	public static final String LOGIN = "login";
+	public static final String CONNECTION_INITIALIZED = "connection_initialized";
 	public static final String DISCONNECT = "disconnect";
 	
 	/**

@@ -19,6 +19,7 @@ import lk.ircta.service.IrcTalkService;
 import lk.ircta.util.MapBuilder;
 import lk.ircta.util.SortedList;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import android.content.BroadcastReceiver;
@@ -32,15 +33,14 @@ import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -73,7 +73,7 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 		}
 	};
 	
-	private long serverId;
+	private Server server;
 	private Channel channel;
 	
 	private ListView chatListView;
@@ -83,11 +83,11 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 	private AtomicBoolean gettingPastLog;
 	private long rootLogId;
 	
-	public static ChannelChatFragment newInstance(long serverId, String channelJson) {
+	public static ChannelChatFragment newInstance(long serverId, String channel) {
 		ChannelChatFragment fragment = new ChannelChatFragment();
 		Bundle args = new Bundle();
 		args.putLong(ARG_SERVER_ID, serverId);
-		args.putString(ARG_CHANNEL, channelJson);
+		args.putString(ARG_CHANNEL, channel);
 		fragment.setArguments(args);
 		return fragment;
 	}
@@ -95,16 +95,8 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 	public static ChannelChatFragment newInstance(Server server, Channel channel) {
 		ChannelChatFragment fragment = new ChannelChatFragment();
 		Bundle args = new Bundle();
-		try {
-			args.putLong(ARG_SERVER_ID, server.getId());
-			args.putString(ARG_CHANNEL, JsonResponseHandler.mapper.writeValueAsString(channel));
-		} catch (JsonGenerationException e) {
-			logger.error(null, e);
-		} catch (JsonMappingException e) {
-			logger.error(null, e);
-		} catch (IOException e) {
-			logger.error(null, e);
-		}
+		args.putLong(ARG_SERVER_ID, server.getId());
+		args.putString(ARG_CHANNEL, channel.getChannel());
 		fragment.setArguments(args);
 		return fragment;
 	}
@@ -115,24 +107,6 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 		
 		gettingPastLog = new AtomicBoolean();
 		rootLogId = -1;
-		
-		Bundle args = getArguments();
-		if (args == null)
-			return;
-		
-		try {
-			serverId = args.getLong(ARG_SERVER_ID);
-			channel = JsonResponseHandler.mapper.readValue(args.getString(ARG_CHANNEL), Channel.class);
-		} catch (JsonParseException e) {
-			logger.error(null, e);
-		} catch (JsonMappingException e) {
-			logger.error(null, e);
-		} catch (IOException e) {
-			logger.error(null, e);
-		}
-		
-		getSherlockActivity().getSupportActionBar().setTitle(channel.getChannel());
-		getSherlockActivity().getSupportActionBar().setSubtitle(channel.getTopic());
 		
 		chatListAdapter = new LogAdapter(getActivity(), R.id.message);
 		localBroadcastManager.registerReceiver(pushLogReceiver, new IntentFilter(LocalBroadcast.PUSH_LOGS));
@@ -165,11 +139,19 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 	public void onBindService(IrcTalkService talkService) {
 		super.onBindService(talkService);
 		
+		Bundle args = getArguments();
+		if (args == null)
+			return;
+		
+		server = talkService.getServer(args.getLong(ARG_SERVER_ID));
+		channel = talkService.getChannel(server.getId(), args.getString(ARG_CHANNEL));
+		
+		getSherlockActivity().getSupportActionBar().setTitle(channel.getChannel());
+		if (!StringUtils.isEmpty(channel.getTopic()))
+			getSherlockActivity().getSupportActionBar().setSubtitle(channel.getTopic());
+		
 		for (Log log : talkService.getChannelLogs(channel))
 			chatListAdapter.add(log);
-		
-		if (chatListAdapter.isEmpty())
-			requestGetPastLog();
 		
 		chatListView.setSelection(chatListView.getCount() > 0 ? chatListView.getCount() - 1 : 0);
 	}
@@ -215,9 +197,9 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 		chatListHeaderView.getChildAt(0).setVisibility(View.VISIBLE);
 		
 		Map<String, Object> data = new MapBuilder<String, Object>(4)
-				.put("server_id", serverId)
+				.put("server_id", server.getId())
 				.put("channel", channel.getChannel())
-				.put("last_log_id", chatListAdapter.getItem(0).getLogId())
+				.put("last_log_id", chatListAdapter.isEmpty() ? -1 : chatListAdapter.getItem(0).getLogId())
 				.put("log_count", 30)
 				.build();
 		
@@ -234,7 +216,7 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 						position += data.logs.size();
 						chatListView.setSelection(position);
 						
-						if (data.logs.isEmpty())
+						if (data.logs.isEmpty() && !chatListAdapter.isEmpty())
 							rootLogId = chatListAdapter.getItem(0).getLogId();
 						
 						chatListHeaderView.getChildAt(0).setVisibility(View.GONE);
@@ -247,7 +229,7 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 	
 	public void sendMessage(String message) {
 		Map<String, Object> data = new MapBuilder<String, Object>()
-				.put("server_id", serverId)
+				.put("server_id", server.getId())
 				.put("channel", channel.getChannel())
 				.put("message", message)
 				.build();

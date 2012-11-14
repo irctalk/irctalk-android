@@ -1,6 +1,7 @@
 package lk.ircta.model;
 
 import java.util.List;
+import java.util.Locale;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -20,7 +21,7 @@ public class Channel implements Model {
 	
 	@JsonIgnore
 	public String getChannelKey() {
-		return serverId + "|" + channel.toLowerCase();
+		return getChannelKey(serverId, channel);
 	}
 	
 	public long getServerId() {
@@ -61,5 +62,9 @@ public class Channel implements Model {
 
 	public void setLastLog(Log lastLog) {
 		this.lastLog = lastLog;
+	}
+	
+	public static final String getChannelKey(long serverId, String channelStr) {
+		return serverId + "|" + channelStr.toLowerCase(Locale.getDefault());
 	}
 }

@@ -17,13 +17,14 @@ public class Log implements Model {
 	private String channel;
 	private String message;
 	private String from;
+	private boolean noti;
 	private long timestamp;
 	
 	protected Log() {}
 
 	@JsonIgnore
 	public String getChannelKey() {
-		return serverId + "|" + channel.toLowerCase();
+		return Channel.getChannelKey(serverId, channel);
 	}
 	
 	public long getServerId() {
@@ -64,6 +65,14 @@ public class Log implements Model {
 
 	public void setFrom(String from) {
 		this.from = from;
+	}
+	
+	public boolean isNoti() {
+		return noti;
+	}
+	
+	public void setNoti(boolean noti) {
+		this.noti = noti;
 	}
 
 	public long getTimestamp() {

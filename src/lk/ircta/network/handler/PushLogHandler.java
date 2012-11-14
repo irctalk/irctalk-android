@@ -2,6 +2,7 @@ package lk.ircta.network.handler;
 
 import java.util.Map;
 
+import lk.ircta.gcm.GCMIntentService;
 import lk.ircta.model.Log;
 import lk.ircta.model.Model;
 import lk.ircta.network.JsonResponseHandler;
@@ -11,7 +12,6 @@ import lk.ircta.util.MapBuilder;
 public class PushLogHandler extends JsonResponseHandler<PushLogHandler.PushLogData> {
 	protected static class PushLogData implements Model {
 		public Log log;
-		public boolean noti;
 		
 		protected PushLogData() {};
 	}
@@ -28,7 +28,9 @@ public class PushLogHandler extends JsonResponseHandler<PushLogHandler.PushLogDa
 	public void onReceiveData(long msgId, PushLogData data) {
 		ircTalkService.pushLog(data.log);
 		
-		if (data.noti) {
+		if (data.log.isNoti()) {
+			GCMIntentService.showPushLogNotification(ircTalkService, data.log);
+			
 			Map<String, Object> ackData = new MapBuilder<String, Object>(1)
 					.put("log_id", data.log.getLogId())
 					.build();

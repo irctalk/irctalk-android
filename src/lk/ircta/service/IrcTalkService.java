@@ -6,6 +6,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,11 +21,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 import lk.ircta.application.Config;
 import lk.ircta.local.Local;
 import lk.ircta.local.LocalBroadcast;
+import lk.ircta.model.Channel;
 import lk.ircta.model.Log;
+import lk.ircta.model.Server;
 import lk.ircta.network.ClientHandler;
 import lk.ircta.network.JsonRequestModel;
 import lk.ircta.network.JsonResponseHandler;
 import lk.ircta.network.ResponseHandler;
+import lk.ircta.network.datamodel.GetInitLogsData;
+import lk.ircta.network.datamodel.GetServersData;
 import lk.ircta.network.datamodel.LoginData;
 import lk.ircta.network.handler.AddChannelHandler;
 import lk.ircta.network.handler.PushLogHandler;
@@ -32,7 +38,7 @@ import lk.ircta.util.MapBuilder;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.log4j.Logger;
 import org.jboss.netty.bootstrap.ClientBootstrap;
-import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.AbstractChannel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
@@ -82,7 +88,7 @@ public class IrcTalkService extends Service {
 	private Thread ioWorkerThread;
 	
 	private static final BlockingQueue<WebSocketFrame> requestQueue = new LinkedBlockingQueue<WebSocketFrame>();
-	private volatile Channel channel;
+	private volatile AbstractChannel channel;
 	
 	private ClientHandler clientHandler;
 	private CountDownLatch registerLatch, loginLatch;
@@ -90,7 +96,10 @@ public class IrcTalkService extends Service {
 	private volatile boolean shouldClose;
 	private final MutableBoolean isConnectionActive = new MutableBoolean();
 	
-	private ConcurrentHashMap<String, TreeMap<Long, Log>> logs;
+	private volatile List<Server> servers;
+	private volatile Map<Long, List<Channel>> channels;
+	private volatile Map<String, Channel> channelKeyMap;
+	private volatile ConcurrentHashMap<String, TreeMap<Long, Log>> logs;
 
 	@Override
 	public void onCreate() {
@@ -157,7 +166,7 @@ public class IrcTalkService extends Service {
 						logger.debug("connected");
 						
 						logger.debug("handshaking");
-						channel = future.getChannel();
+						channel = (AbstractChannel) future.getChannel();
 						handshaker.handshake(channel).syncUninterruptibly();
 						logger.debug("handshaked");
 						
@@ -197,6 +206,46 @@ public class IrcTalkService extends Service {
 						
 						if (!isLoggedIn) 
 							close(false);
+						
+						sendRequestSync("getServers", Collections.emptyMap(), new JsonResponseHandler<GetServersData>(GetServersData.class) {
+							@Override
+							public void onReceiveData(GetServersData data) {
+								servers = data.servers;
+								channels = new HashMap<Long, List<Channel>>();
+								channelKeyMap = new HashMap<String, Channel>(data.channels.size());
+								
+								for (Server server : servers) 
+									channels.put(server.getId(), new ArrayList<Channel>());
+								
+								for (Channel channel : data.channels) {
+									channels.get(channel.getServerId()).add(channel);
+									channelKeyMap.put(channel.getChannelKey(), channel);
+								}
+								
+								for (List<Channel> serverChannels : channels.values()) {
+									Collections.sort(serverChannels, new Comparator<Channel>() {
+										@Override
+										public int compare(Channel lhs, Channel rhs) {
+											return lhs.getChannel().compareTo(rhs.getChannel());
+										}
+									});
+								}
+								
+								LocalBroadcastManager.getInstance(IrcTalkService.this).sendBroadcast(new Intent(LocalBroadcast.CONNECTION_INITIALIZED));
+							}
+						}).syncUninterruptibly();
+						
+						Map<String, Object> reqData = new MapBuilder<String, Object>(2)
+								.put("last_log_id", -1)
+								.put("log_count", 30)
+								.build();
+						
+						sendRequestSync("getInitLogs", reqData, new JsonResponseHandler<GetInitLogsData>(GetInitLogsData.class) {
+							@Override
+							public void onReceiveData(GetInitLogsData data) {
+								pushLogs(data.logs);
+							}
+						}).syncUninterruptibly();
 						
 						// gcm registration id
 						if (gcmRegId != null && !Local.INSTANCE.isGCMRegIdSent()) {
@@ -299,10 +348,8 @@ public class IrcTalkService extends Service {
 					try {
 						JsonNode node = JsonResponseHandler.mapper.readTree(msg);
 						int status = node.get("status").asInt();
-						if (status == 0) {
+						if (status == 0) 
 							isLoggedIn = true;
-							LocalBroadcastManager.getInstance(IrcTalkService.this).sendBroadcast(new Intent(LocalBroadcast.LOGIN));
-						}
 					} catch (Exception e) {
 						logger.error(null, e);
 					}
@@ -349,12 +396,39 @@ public class IrcTalkService extends Service {
 		return isLoggedIn;
 	}
 	
+	public List<Server> getServers() {
+		return new ArrayList<Server>(servers);
+	}
+	
+	public Server getServer(long serverId) {
+		for (Server server : servers)
+			if (server.getId() == serverId)
+				return server;
+		return null;
+	}
+	
+	public Map<Long, List<Channel>> getChannels() {
+		return new HashMap<Long, List<Channel>>(channels);
+	}
+	
+	public List<Channel> getServerChannels(Server server) {
+		return getServerChannels(server.getId());
+	}
+	
+	public List<Channel> getServerChannels(long serverId) {
+		return new ArrayList<Channel>(channels.get(serverId));
+	}
+	
+	public Channel getChannel(long serverId, String channelStr) {
+		return channelKeyMap.get(Channel.getChannelKey(serverId, channelStr));
+	}
+	
 	/**
 	 * 
 	 * @param channel
 	 * @return defensive copied {@link Log}s list
 	 */
-	public Collection<Log> getChannelLogs(lk.ircta.model.Channel channel) {
+	public Collection<Log> getChannelLogs(Channel channel) {
 		logs.putIfAbsent(channel.getChannelKey(), new TreeMap<Long, Log>());
 		return logs.get(channel.getChannelKey()).values();
 	}

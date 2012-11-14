@@ -32,16 +32,19 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 	protected LocalBroadcastManager localBroadcastManager;
 	
 	protected IrcTalkService ircTalkService;
+	private boolean isConnectionActive;
 	private final ServiceConnection conn = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			ircTalkService = ((IrcTalkServiceBinder) service).getService();
 			if (ircTalkService.isLoggedIn())
-				loginReceiver.onReceive(BaseActivity.this, null);
+				connInitReceiver.onReceive(BaseActivity.this, null);
 
-			for (OnBindServiceListener listener : onBindServiceListeners)
-				listener.onBindService(ircTalkService);
-			onBindService(ircTalkService);
+			if (isConnectionActive) {
+				for (OnBindServiceListener listener : onBindServiceListeners)
+					listener.onBindService(ircTalkService);
+				onBindService(ircTalkService);
+			}
 		}
 
 		@Override
@@ -56,12 +59,20 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 
 	private Set<OnBindServiceListener> onBindServiceListeners = new HashSet<OnBindServiceListener>();
 
-	private final BroadcastReceiver loginReceiver = new BroadcastReceiver() {
+	private final BroadcastReceiver connInitReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			if (getSupportActionBar() != null)
 				getSupportActionBar().setIcon(R.drawable.ic_launcher);
 			logger.debug("login received");
+			
+			isConnectionActive = true;
+			
+			if (ircTalkService != null) {
+				for (OnBindServiceListener listener : onBindServiceListeners)
+					listener.onBindService(ircTalkService);
+				onBindService(ircTalkService);
+			}
 		}
 	};
 	
@@ -71,6 +82,8 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 			if (getSupportActionBar() != null)
 				getSupportActionBar().setIcon(R.drawable.ic_launcher_gray);
 			logger.debug("disconnect received");
+			
+			isConnectionActive = false;
 		}
 	};
 
@@ -90,7 +103,7 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 
 		bindService(new Intent(this, IrcTalkService.class), conn, BIND_AUTO_CREATE);
 
-		localBroadcastManager.registerReceiver(loginReceiver, new IntentFilter(LocalBroadcast.LOGIN));
+		localBroadcastManager.registerReceiver(connInitReceiver, new IntentFilter(LocalBroadcast.CONNECTION_INITIALIZED));
 		localBroadcastManager.registerReceiver(disconnectReceiver, new IntentFilter(LocalBroadcast.DISCONNECT));
 	}
 
@@ -105,8 +118,7 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 	protected void onDestroy() {
 		super.onDestroy();
 
-		logger.info("onDestroy");
-		localBroadcastManager.unregisterReceiver(loginReceiver);
+		localBroadcastManager.unregisterReceiver(connInitReceiver);
 		localBroadcastManager.unregisterReceiver(disconnectReceiver);
 
 		unbindService(conn);
