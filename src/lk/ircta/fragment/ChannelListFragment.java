@@ -55,36 +55,20 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 	private ExpandableListView listView;
 	private ChannelExpandableListAdapter adapter;
 
-	private final BroadcastReceiver pushLogReceiver = new BroadcastReceiver() {
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			try {
-				List<Log> logs = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_LOGS), new TypeReference<List<Log>>() {});
-				for (Log log : logs)
-					adapter.setLastLogIfLast(log);
-			} catch (JsonParseException e) {
-				logger.error(null, e);
-			} catch (JsonMappingException e) {
-				logger.error(null, e);
-			} catch (IOException e) {
-				logger.error(null, e);
-			}
-			adapter.notifyDataSetChanged();
-		}
-	};
-
 	private final BroadcastReceiver updateChannelsReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			try {
-				List<Channel> channels = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_CHANNELS), new TypeReference<List<Channel>>() {});
-				Set<Long> serverIds = new HashSet<Long>();
-				for (Channel channel : channels) 
-					serverIds.add(channel.getServerId());
-				
 				IrcTalkService talkService = getIrcTalkService();
 				if (talkService == null)
 					return;
+				
+				Set<String> channelKeys = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_CHANNEL_KEYS), new TypeReference<Set<String>>() {});
+				logger.info(channelKeys);
+				Set<Long> serverIds = new HashSet<Long>();
+				for (String channelKey : channelKeys) 
+					serverIds.add(talkService.getChannel(channelKey).getServerId());
+				logger.info(serverIds);
 				
 				for (Long serverId : serverIds)
 					adapter.channels.put(serverId, talkService.getServerChannels(serverId));
@@ -231,22 +215,6 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 		public boolean isChildSelectable(int groupPosition, int childPosition) {
 			return true;
 		}
-
-		public void setLastLogIfLast(Log log) {
-			for (int i = 0; i < getGroupCount(); i++) {
-				if (((Server) getGroup(i)).getId() == log.getServerId()) {
-					Server server = ((Server) getGroup(i));
-					for (Channel channel : channels.get(server.getId())) {
-						if (channel.getChannelKey().equals(log.getChannelKey())) {
-							if (channel.getLastLog() == null || log.getLogId() > channel.getLastLog().getLogId())
-								channel.setLastLog(log);
-							break;
-						}
-					}
-					break;
-				}
-			}
-		}
 	}
 
 	@Override
@@ -271,7 +239,6 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 		for (int i = 0; i < adapter.servers.size(); i++)
 			listView.expandGroup(i);
 		
-		localBroadcastManager.registerReceiver(pushLogReceiver, new IntentFilter(LocalBroadcast.PUSH_LOGS));
 		localBroadcastManager.registerReceiver(updateChannelsReceiver, new IntentFilter(LocalBroadcast.UPDATE_CHANNELS));
 	}
 
@@ -345,7 +312,6 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 	public void onDestroy() {
 		super.onDestroy();
 
-		localBroadcastManager.unregisterReceiver(pushLogReceiver);
 		localBroadcastManager.unregisterReceiver(updateChannelsReceiver);
 	}
 }

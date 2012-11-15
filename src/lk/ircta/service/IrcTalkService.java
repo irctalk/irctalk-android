@@ -7,10 +7,11 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -225,15 +226,6 @@ public class IrcTalkService extends Service {
 									channelKeyMap.put(channel.getChannelKey(), channel);
 								}
 								
-								for (List<Channel> serverChannels : channels.values()) {
-									Collections.sort(serverChannels, new Comparator<Channel>() {
-										@Override
-										public int compare(Channel lhs, Channel rhs) {
-											return lhs.getChannel().compareTo(rhs.getChannel());
-										}
-									});
-								}
-								
 								isConnectionInitialized = true;
 								LocalBroadcastManager.getInstance(IrcTalkService.this).sendBroadcast(new Intent(LocalBroadcast.CONNECTION_INITIALIZED));
 							}
@@ -333,6 +325,7 @@ public class IrcTalkService extends Service {
 	 */
 	public <T> ChannelFuture sendRequestSync(String type, T data, final ResponseHandler rawHandler) {
 		JsonRequestModel<T> packetModel = new JsonRequestModel<T>(type, data);
+		
 		ResponseHandler handler = rawHandler;
 		if (type.equals("register")) {
 			handler = new ResponseHandler() {
@@ -433,6 +426,10 @@ public class IrcTalkService extends Service {
 		return channelKeyMap.get(Channel.getChannelKey(serverId, channelStr));
 	}
 	
+	public Channel getChannel(String channelKey) {
+		return channelKeyMap.get(channelKey);
+	}
+	
 	public void addOrUpdateChannel(Channel newChannel) {
 		synchronized (channels) {
 			Channel channel = getChannel(newChannel.getServerId(), newChannel.getChannelKey());
@@ -506,10 +503,18 @@ public class IrcTalkService extends Service {
 	
 	private void broadcastLogs(List<Log> logs, boolean sync) {
 		LocalBroadcastManager localBroadcastManager = LocalBroadcastManager.getInstance(this);
+
+		Set<String> updatedChannelKeys = new HashSet<String>();
+		for (Log log : logs) {
+			Channel channel = setLastLogIfLast(log);
+			updatedChannelKeys.add(channel.getChannelKey());
+		}
 		
 		String logsJson = null;
+		String updatedChannelKeysJson = null;
 		try {
 			logsJson = JsonResponseHandler.mapper.writeValueAsString(logs);
+			updatedChannelKeysJson = JsonResponseHandler.mapper.writeValueAsString(updatedChannelKeys);
 		} catch (JsonGenerationException e) {
 			logger.error(null, e);
 		} catch (JsonMappingException e) {
@@ -526,5 +531,20 @@ public class IrcTalkService extends Service {
 			localBroadcastManager.sendBroadcastSync(intent);
 		else
 			localBroadcastManager.sendBroadcast(intent);
+		
+		intent = new Intent(LocalBroadcast.UPDATE_CHANNELS);
+		intent.putExtra(LocalBroadcast.EXTRA_CHANNEL_KEYS, updatedChannelKeysJson);
+		localBroadcastManager.sendBroadcast(intent);
+	}
+	
+	private Channel setLastLogIfLast(Log log) {
+		Channel channel = channelKeyMap.get(log.getChannelKey());
+		if (channel == null)
+			return null;
+		
+		if (channel.getLastLog() == null || channel.getLastLog().getLogId() < log.getLogId())
+			channel.setLastLog(log);
+		
+		return channel;
 	}
 }

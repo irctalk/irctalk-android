@@ -13,10 +13,10 @@ public abstract class LocalBroadcast {
 	public static final String PUSH_LOGS = "push_logs";
 	
 	/**
-	 * {@link #EXTRA_CHANNELS}: [{@link Channel}]
+	 * {@link #EXTRA_CHANNEL_KEYS}: [{@link Channel}]
 	 */
 	public static final String UPDATE_CHANNELS = "update_channels";
 	
 	public static final String EXTRA_LOGS = "log";
-	public static final String EXTRA_CHANNELS = "channels";
+	public static final String EXTRA_CHANNEL_KEYS = "channel_keys";
 }

@@ -2,7 +2,9 @@ package lk.ircta.network.handler;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import lk.ircta.application.GlobalApplication;
 import lk.ircta.local.LocalBroadcast;
@@ -38,7 +40,7 @@ public class UpdateChannelHandler extends JsonResponseHandler<UpdateChannelHandl
 	
 	@Override
 	public void onReceiveData(UpdateChannelData data) {
-		List<Channel> updatedChannels = new ArrayList<Channel>(data.channels.size());
+		Set<String> updatedChannelKeys = new HashSet<String>(data.channels.size());
 		
 		for (Channel newChannel : data.channels) {
 			Channel channel = talkService.getChannel(newChannel.getServerId(), newChannel.getChannel());
@@ -48,13 +50,13 @@ public class UpdateChannelHandler extends JsonResponseHandler<UpdateChannelHandl
 			} else 
 				channel.mergeUpdate(newChannel);
 			
-			updatedChannels.add(channel);
+			updatedChannelKeys.add(channel.getChannelKey());
 		}
 		
 		LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(GlobalApplication.getInstance());
 		Intent intent = new Intent(LocalBroadcast.UPDATE_CHANNELS);
 		try {
-			intent.putExtra(LocalBroadcast.EXTRA_CHANNELS, mapper.writeValueAsString(updatedChannels));
+			intent.putExtra(LocalBroadcast.EXTRA_CHANNEL_KEYS, mapper.writeValueAsString(updatedChannelKeys));
 		} catch (JsonGenerationException e) {
 			logger.error(null, e);
 		} catch (JsonMappingException e) {

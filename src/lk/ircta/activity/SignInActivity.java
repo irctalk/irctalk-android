@@ -32,6 +32,7 @@ public class SignInActivity extends BaseActivity implements AuthActivity, OnClic
 	private static final String ACCOUNT_TYPE_GOOGLE = "com.google";
 	private static final String SCOPE = "oauth2:https://www.googleapis.com/auth/userinfo.profile";
 
+	private ProgressDialog progressDialog;
 	private Button signInButton;
 	
 	@Override
@@ -57,6 +58,8 @@ public class SignInActivity extends BaseActivity implements AuthActivity, OnClic
 									bundle = future.getResult();
 //									String accountName = bundle.getString(AccountManager.KEY_ACCOUNT_NAME);
 									String authToken = bundle.getString(AccountManager.KEY_AUTHTOKEN);
+									
+									progressDialog = ProgressDialog.show(SignInActivity.this, null, "잠시만 기다려주세요..", true);
 									
 									proceedRegister(authToken);
 								} catch (OperationCanceledException e) {
@@ -90,8 +93,6 @@ public class SignInActivity extends BaseActivity implements AuthActivity, OnClic
 	}
 	
 	private void proceedRegister(String accessToken) {
-		final ProgressDialog progressDialog = ProgressDialog.show(this, null, "잠시만 기다려주세요..", true);
-		
 		Map<String, String> dataMap = new MapBuilder<String, String>(1)
 				.put("access_token", accessToken)
 				.build();
@@ -120,6 +121,16 @@ public class SignInActivity extends BaseActivity implements AuthActivity, OnClic
 			@Override
 			public void onReceiveError(int status, String msg) {
 				super.onReceiveError(status, msg);
+				
+				progressDialog.dismiss();
+				AlertDialog.Builder alert = new AlertDialog.Builder(SignInActivity.this)
+				.setMessage("로그인에 실패하였습니다.");
+				alert.show();
+			}
+			
+			@Override
+			public void onThrowable(Throwable t) {
+				super.onThrowable(t);
 				
 				progressDialog.dismiss();
 				AlertDialog.Builder alert = new AlertDialog.Builder(SignInActivity.this)

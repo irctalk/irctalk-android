@@ -102,8 +102,11 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 
 		localBroadcastManager = LocalBroadcastManager.getInstance(this);
 
-		if (!(this instanceof AuthActivity) && !Local.INSTANCE.isSignedIn())
-			startActivityForResult(new Intent(this, SignInActivity.class), REQUEST_SIGNIN);
+		if (!(this instanceof AuthActivity) && !Local.INSTANCE.isSignedIn()) {
+			Intent signInIntent =new Intent(this, SignInActivity.class);
+			signInIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+			startActivityForResult(signInIntent, REQUEST_SIGNIN);
+		}
 
 		if (getSupportActionBar() != null) {
 			getSupportActionBar().setHomeButtonEnabled(true);

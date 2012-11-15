@@ -1,6 +1,7 @@
 package lk.ircta.model;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
@@ -17,7 +18,7 @@ public class Channel implements Model {
 	private String channel;
 	private String topic;
 	private Set<String> members;
-	private Log lastLog;
+	@JsonIgnore private Log lastLog;
 	
 	public Channel(long serverId, String channel) {
 		this.serverId = serverId;
@@ -77,6 +78,8 @@ public class Channel implements Model {
 	}
 	
 	public Set<String> getMembers() {
+		if (members == null)
+			members = new HashSet<String>();
 		return members;
 	}
 	
