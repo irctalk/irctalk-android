@@ -2,6 +2,8 @@ package lk.ircta.network.handler;
 
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import lk.ircta.gcm.GCMIntentService;
 import lk.ircta.network.JsonResponseHandler;
 import lk.ircta.network.datamodel.PushLogData;
@@ -9,6 +11,7 @@ import lk.ircta.service.IrcTalkService;
 import lk.ircta.util.MapBuilder;
 
 public class PushLogHandler extends JsonResponseHandler<PushLogData> {
+	private static final Logger logger = Logger.getLogger(PushLogHandler.class);
 	private final IrcTalkService talkService;
 	
 	public PushLogHandler(IrcTalkService ircTalkService) {

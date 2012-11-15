@@ -32,15 +32,43 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 	protected LocalBroadcastManager localBroadcastManager;
 	
 	protected IrcTalkService ircTalkService;
-	private int bindDispatchLatch = 2;
+	private BindDispatchLatch bindDispatchLatch;
+	
+	private class BindDispatchLatch {
+		private static final int MASK_CONN = 1;
+		private static final int MASK_CONN_INIT = 2;
+		
+		private int masks;
+		private final Runnable callback;
+		
+		private BindDispatchLatch(Runnable callback) {
+			this.callback = callback;
+		};
+		
+		private void addMask(int mask) {
+			masks |= mask;
+			
+			logger.info("mask : " + masks);
+			
+			if (masks == (MASK_CONN | MASK_CONN_INIT))
+				callback.run();
+		}
+		
+		private void removeMask(int mask) {
+			masks &= ~mask;
+		}
+	}
+	
 	private final ServiceConnection conn = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			ircTalkService = ((IrcTalkServiceBinder) service).getService();
-			if (ircTalkService.isConnectionInitialized())
+			if (ircTalkService.isConnectionInitialized()) {
 				connInitReceiver.onReceive(BaseActivity.this, null);
+			}
 
-			decrementBindDispatchLatchAndTryDispatch();
+			
+			bindDispatchLatch.addMask(BindDispatchLatch.MASK_CONN);
 		}
 
 		@Override
@@ -50,7 +78,7 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 			if (getSupportActionBar() != null)
 				getSupportActionBar().setIcon(R.drawable.ic_launcher_gray);
 			
-			incrementBindDispatchLatch();
+			bindDispatchLatch.removeMask(BindDispatchLatch.MASK_CONN);
 		}
 	};
 
@@ -63,7 +91,8 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 				getSupportActionBar().setIcon(R.drawable.ic_launcher);
 			logger.debug("login received");
 			
-			decrementBindDispatchLatchAndTryDispatch();
+			
+			bindDispatchLatch.addMask(BindDispatchLatch.MASK_CONN_INIT);
 		}
 	};
 	
@@ -74,27 +103,9 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 				getSupportActionBar().setIcon(R.drawable.ic_launcher_gray);
 			logger.debug("disconnect received");
 
-			incrementBindDispatchLatch();
+			bindDispatchLatch.removeMask(BindDispatchLatch.MASK_CONN_INIT);
 		}
 	};
-	
-	private void incrementBindDispatchLatch() {
-		bindDispatchLatch++;
-		if (bindDispatchLatch > 2)
-			bindDispatchLatch = 2;
-		logger.info("bindDispatchLatch : " + bindDispatchLatch);
-	}
-	
-	private void decrementBindDispatchLatchAndTryDispatch() {
-		bindDispatchLatch--;
-		if (bindDispatchLatch == 0) {
-			for (OnBindServiceListener listener : onBindServiceListeners)
-				listener.onBindService(ircTalkService);
-			onBindService(ircTalkService);
-		}
-		
-		logger.info("bindDispatchLatch : " + bindDispatchLatch);
-	}
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -113,7 +124,14 @@ public abstract class BaseActivity extends SherlockFragmentActivity {
 			getSupportActionBar().setIcon(R.drawable.ic_launcher_gray);
 		}
 
-		bindDispatchLatch = 2;
+		bindDispatchLatch = new BindDispatchLatch(new Runnable() {
+			@Override
+			public void run() {
+				for (OnBindServiceListener listener : onBindServiceListeners)
+					listener.onBindService(ircTalkService);
+				onBindService(ircTalkService);
+			}
+		});
 		
 		bindService(new Intent(this, IrcTalkService.class), conn, BIND_AUTO_CREATE);
 

@@ -39,7 +39,7 @@ public class BaseFragment extends SherlockFragment implements OnBindServiceListe
 	public void onStart() {
 		super.onStart();
 		
-		if (isServiceBoundOnAttach && getActivity() != null && getIrcTalkService() != null)
+		if (isServiceBoundOnAttach && getActivity() != null && getIrcTalkService().isConnectionInitialized())
 			onBindService(getIrcTalkService());
 	}
 	

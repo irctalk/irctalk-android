@@ -41,8 +41,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 	
 	@Override
 	public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent e) throws Exception {
+		logger.debug("handle upstream: " + e.toString());
 		super.handleUpstream(ctx, e);
-		logger.debug("event handled: " + e.toString());
 	}
 
 	@Override
