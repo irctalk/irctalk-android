@@ -14,6 +14,7 @@ import lk.ircta.model.Channel;
 import lk.ircta.model.Log;
 import lk.ircta.model.Server;
 import lk.ircta.network.JsonResponseHandler;
+import lk.ircta.network.datamodel.AddChannelData;
 import lk.ircta.service.IrcTalkService;
 import lk.ircta.util.MapBuilder;
 
@@ -26,6 +27,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -36,7 +39,6 @@ import android.widget.ExpandableListView;
 import android.widget.ExpandableListView.OnChildClickListener;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.actionbarsherlock.view.Menu;
 import com.actionbarsherlock.view.MenuInflater;
@@ -64,11 +66,10 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 					return;
 				
 				Set<String> channelKeys = JsonResponseHandler.mapper.readValue(intent.getStringExtra(LocalBroadcast.EXTRA_CHANNEL_KEYS), new TypeReference<Set<String>>() {});
-				logger.info(channelKeys);
+				
 				Set<Long> serverIds = new HashSet<Long>();
 				for (String channelKey : channelKeys) 
 					serverIds.add(talkService.getChannel(channelKey).getServerId());
-				logger.info(serverIds);
 				
 				for (Long serverId : serverIds)
 					adapter.channels.put(serverId, talkService.getServerChannels(serverId));
@@ -95,7 +96,9 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 				switch (v.getId()) {
 				case R.id.add_channel: {
 					final EditText channelEditText = new EditText(getActivity());
-					AlertDialog.Builder alert = new AlertDialog.Builder(getActivity()).setTitle("채널 추가").setView(channelEditText)
+					final AlertDialog alert = new AlertDialog.Builder(getActivity())
+							.setTitle("채널 추가")
+							.setView(channelEditText)
 							.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 								@Override
 								public void onClick(DialogInterface dialog, int which) {
@@ -103,16 +106,38 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 											.put("server_id", server.getId())
 											.put("channel", channelEditText.getText().toString())
 											.build();
-									IrcTalkService.sendRequest("addChannel", data, new JsonResponseHandler<Void>() {
+									IrcTalkService.sendRequest("addChannel", data, new JsonResponseHandler<AddChannelData>(AddChannelData.class) {
 										@Override
-										public void onReceiveData(Void data) {
-											Toast.makeText(getActivity(), "response", Toast.LENGTH_SHORT).show();
+										public void onReceiveData(final AddChannelData data) {
+											runOnUiThread(new Runnable() {
+												@Override
+												public void run() {
+													if (getIrcTalkService() != null)
+														getIrcTalkService().addOrUpdateChannel(data.channel);
+												}
+											});
 										}
 									});
 								}
-							}).setNegativeButton(android.R.string.cancel, null);
-					alert.show();
-
+							}).setNegativeButton(android.R.string.cancel, null)
+							.show();
+					alert.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+					channelEditText.addTextChangedListener(new TextWatcher() {
+						@Override
+						public void onTextChanged(CharSequence s, int start, int before, int count) {
+							if (s.length() == 0 || s.charAt(0) != '#')
+								alert.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+							else
+								alert.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+						}
+						
+						@Override
+						public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+						
+						@Override
+						public void afterTextChanged(Editable s) {}
+					});
+					
 					break;
 				}
 				default: {
@@ -242,34 +267,6 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 		localBroadcastManager.registerReceiver(updateChannelsReceiver, new IntentFilter(LocalBroadcast.UPDATE_CHANNELS));
 	}
 
-//	private void requestGetServers() {
-//		IrcTalkService.sendRequest("getServers", Collections.EMPTY_MAP, new JsonResponseHandler<GetServersData>(GetServersData.class) {
-//			@Override
-//			public void onReceiveData(GetServersData data) {
-//				runOnUiThread(new Runnable() {
-//					@Override
-//					public void run() {
-//						boolean isFirst = adapter == null;
-//
-//						adapter = new ChannelExpandableListAdapter(data.servers, data.);
-//						listView.setAdapter(adapter);
-//
-//						// expand all groups
-//						for (int i = 0; i < servers.size(); i++)
-//							listView.expandGroup(i);
-//
-//						if (isFirst) {
-//							localBroadcastManager.registerReceiver(pushLogReceiver, new IntentFilter(LocalBroadcast.PUSH_LOGS));
-//							localBroadcastManager.registerReceiver(addChannelReceiver, new IntentFilter(LocalBroadcast.ADD_CHANNEL));
-//						}
-//					}
-//				});
-//				
-//				
-//			}
-//		});
-//	}
-
 	@Override
 	public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
 		Intent intent = new Intent(getActivity(), ChatActivity.class);
@@ -302,7 +299,7 @@ public class ChannelListFragment extends BaseFragment implements OnChildClickLis
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
 		switch (requestCode) {
 		case REQUEST_ADD_SERVER:
-//			requestGetServers();
+			
 			break;
 		}
 		super.onActivityResult(requestCode, resultCode, data);

@@ -109,7 +109,6 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 		rootLogId = -1;
 		
 		chatListAdapter = new LogAdapter(getActivity(), R.id.message);
-		localBroadcastManager.registerReceiver(pushLogReceiver, new IntentFilter(LocalBroadcast.PUSH_LOGS));
 	}
 	
 	@Override
@@ -154,6 +153,8 @@ public class ChannelChatFragment extends BaseFragment implements OnItemClickList
 			chatListAdapter.add(log);
 		
 		chatListView.setSelection(chatListView.getCount() > 0 ? chatListView.getCount() - 1 : 0);
+		
+		localBroadcastManager.registerReceiver(pushLogReceiver, new IntentFilter(LocalBroadcast.PUSH_LOGS));
 	}
 	
 	@Override

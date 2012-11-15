@@ -405,7 +405,7 @@ public class IrcTalkService extends Service {
 	
 	public Server getServer(long serverId) {
 		for (Server server : servers)
-			if (server.getId() == serverId)
+			if (server.getId().equals(serverId))
 				return server;
 		return null;
 	}

@@ -76,7 +76,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 				.setContentText(log.getFromMessage())
 				.setContentIntent(stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT))
 				.setTicker(log.getFromMessage())
-				.setDefaults(Notification.DEFAULT_SOUND | Notification.DEFAULT_LIGHTS)
+				.setDefaults(Notification.DEFAULT_ALL)
 				.setPriority(NotificationCompat.PRIORITY_HIGH)
 				.setAutoCancel(true);
 		
